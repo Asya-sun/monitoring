@@ -1,0 +1,68 @@
+#include "postgres.h"
+#include "storage/proc.h"
+#include "storage/procarray.h"
+#include "utils/ps_status.h"
+
+#include "replication/logicallauncher.h"
+#include "commands/dbcommands.h"
+#include "utils/acl.h"
+#include "catalog/pg_authid.h"
+#include "miscadmin.h"
+#include "utils/pgstat_internal.h"
+
+#define UINT32_ACCESS_ONCE(var)		 ((uint32)(*((volatile uint32 *)&(var))))
+
+#define HAS_PGSTAT_PERMISSIONS(role)	 (has_privs_of_role(GetUserId(), ROLE_PG_READ_ALL_STATS) || has_privs_of_role(GetUserId(), role))
+
+extern PGDLLIMPORT PgStat_LocalState pgStatLocal;
+
+
+
+
+void someBGWriterInfo(void) {
+	PgStat_BgWriterStats bgwriterStats;
+
+	pgstat_snapshot_fixed(PGSTAT_KIND_BGWRITER);
+
+	bgwriterStats = pgStatLocal.snapshot.bgwriter;
+
+	elog(LOG, "buf_written_clean=%ld  maxwritten_clean=%ld  buf_alloc=%ld  stat_reset_timestamp=%ld",
+		bgwriterStats.buf_written_clean, bgwriterStats.maxwritten_clean, bgwriterStats.buf_alloc, bgwriterStats.stat_reset_timestamp);
+
+}
+
+тут
+void someActivityInfo(void); - смотреть в другом файле
+void someBGWriterInfo(void);
+Пример вывода логов:
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92078 LEADER_PID=0 StartTime=796834921634476 BACKEND_TYPE=B_CHECKPOINTER
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92079 LEADER_PID=0 StartTime=796834921634670 BACKEND_TYPE=B_BG_WRITER
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92080 LEADER_PID=0 StartTime=796834921634950 BACKEND_TYPE=B_STARTUP
+2025-04-01 22:02:15.633 +07 [92080] LOG:  buf_written_clean=0  maxwritten_clean=0  buf_alloc=0  stat_reset_timestamp=796834923769447
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92078 LEADER_PID=0 StartTime=796834921634476 BACKEND_TYPE=B_CHECKPOINTER
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92079 LEADER_PID=0 StartTime=796834921634670 BACKEND_TYPE=B_BG_WRITER
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92080 LEADER_PID=0 StartTime=796834921634950 BACKEND_TYPE=B_STARTUP
+2025-04-01 22:02:15.633 +07 [92080] LOG:  buf_written_clean=0  maxwritten_clean=0  buf_alloc=0  stat_reset_timestamp=796834923769447
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92078 LEADER_PID=0 StartTime=796834921634476 BACKEND_TYPE=B_CHECKPOINTER
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92079 LEADER_PID=0 StartTime=796834921634670 BACKEND_TYPE=B_BG_WRITER
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92080 LEADER_PID=0 StartTime=796834921634950 BACKEND_TYPE=B_STARTUP
+2025-04-01 22:02:15.633 +07 [92080] LOG:  buf_written_clean=0  maxwritten_clean=0  buf_alloc=0  stat_reset_timestamp=796834923769447
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92078 LEADER_PID=0 StartTime=796834921634476 BACKEND_TYPE=B_CHECKPOINTER
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92079 LEADER_PID=0 StartTime=796834921634670 BACKEND_TYPE=B_BG_WRITER
+2025-04-01 22:02:15.633 +07 [92080] LOG:  [Recovery] PID=92080 LEADER_PID=0 StartTime=796834921634950 BACKEND_TYPE=B_STARTUP
+
+
+
+конец логов:
+2025-04-01 22:02:15.644 +07 [92080] LOG:  buf_written_clean=0  maxwritten_clean=0  buf_alloc=0  stat_reset_timestamp=796834923769447
+cp: cannot stat '/home/aleksandra/Documents/pglab/databases/test_7/wal_archive/000000010000000000000007': No such file or directory
+2025-04-01 22:02:16.651 +07 [92080] LOG:  redo done at 0/6EB6118 system usage: CPU: user: 1.89 s, system: 6.90 s, elapsed: 12.87 s
+2025-04-01 22:02:16.651 +07 [92080] LOG:  last completed transaction was at log time 2025-04-01 22:02:01.197015+07
+2025-04-01 22:02:17.680 +07 [92080] LOG:  restored log file "000000010000000000000006" from archive
+cp: cannot stat '/home/aleksandra/Documents/pglab/databases/test_7/wal_archive/00000002.history': No such file or directory
+2025-04-01 22:02:18.712 +07 [92080] LOG:  selected new timeline ID: 2
+cp: cannot stat '/home/aleksandra/Documents/pglab/databases/test_7/wal_archive/00000001.history': No such file or directory
+2025-04-01 22:02:19.755 +07 [92080] LOG:  archive recovery complete
+2025-04-01 22:02:19.759 +07 [92078] LOG:  checkpoint starting: end-of-recovery immediate wait
+2025-04-01 22:02:19.778 +07 [92078] LOG:  checkpoint complete: wrote 24 buffers (0.1%); 0 WAL file(s) added, 0 removed, 3 recycled; write=0.006 s, sync=0.004 s, total=0.023 s; sync files=20, longest=0.002 s, average=0.001 s; distance=49152 kB, estimate=49152 kB; lsn=0/7000028, redo lsn=0/7000028
+2025-04-01 22:02:19.784 +07 [92077] LOG:  database system is ready to accept connections

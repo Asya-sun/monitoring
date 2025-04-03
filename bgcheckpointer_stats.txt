@@ -1,0 +1,75 @@
+#include "postgres.h"
+#include "storage/proc.h"
+#include "storage/procarray.h"
+#include "utils/ps_status.h"
+
+#include "replication/logicallauncher.h"
+#include "commands/dbcommands.h"
+#include "utils/acl.h"
+#include "catalog/pg_authid.h"
+#include "miscadmin.h"
+#include "utils/pgstat_internal.h"
+
+#define UINT32_ACCESS_ONCE(var)		 ((uint32)(*((volatile uint32 *)&(var))))
+
+#define HAS_PGSTAT_PERMISSIONS(role)	 (has_privs_of_role(GetUserId(), ROLE_PG_READ_ALL_STATS) || has_privs_of_role(GetUserId(), role))
+
+extern PGDLLIMPORT PgStat_LocalState pgStatLocal;
+
+
+
+
+
+void someCheckpointerInfo(void) {
+	PgStat_CheckpointerStats checkpointerStats;
+
+	pgstat_snapshot_fixed(PGSTAT_KIND_CHECKPOINTER);
+
+	checkpointerStats = pgStatLocal.snapshot.checkpointer;
+
+	elog(LOG, "num_requested=%ld  write_time=%ld  sync_time=%ld  buffers_written=%ld stat_reset_timestamp=%ld",
+		checkpointerStats.num_requested, checkpointerStats.write_time, checkpointerStats.sync_time, checkpointerStats.buffers_written, checkpointerStats.stat_reset_timestamp);
+
+}
+
+
+логи
+тут
+void someActivityInfo(void); - смотреть в другом файле
+someCheckpointerInfo();
+
+2025-04-01 22:20:30.927 +07 [5486] LOG:  [Recovery] PID=5486 LEADER_PID=0 StartTime=796836020043931 BACKEND_TYPE=B_STARTUP
+2025-04-01 22:20:30.927 +07 [5486] LOG:  num_requested=0  write_time=0  sync_time=0  buffers_written=0 stat_reset_timestamp=796836022946340
+2025-04-01 22:20:30.927 +07 [5486] LOG:  [Recovery] PID=5484 LEADER_PID=0 StartTime=796836020043485 BACKEND_TYPE=B_CHECKPOINTER
+2025-04-01 22:20:30.927 +07 [5486] LOG:  [Recovery] PID=5485 LEADER_PID=0 StartTime=796836020043621 BACKEND_TYPE=B_BG_WRITER
+2025-04-01 22:20:30.927 +07 [5486] LOG:  [Recovery] PID=5486 LEADER_PID=0 StartTime=796836020043931 BACKEND_TYPE=B_STARTUP
+2025-04-01 22:20:30.927 +07 [5486] LOG:  num_requested=0  write_time=0  sync_time=0  buffers_written=0 stat_reset_timestamp=796836022946340
+2025-04-01 22:20:30.938 +07 [5486] LOG:  [Recovery] PID=5484 LEADER_PID=0 StartTime=796836020043485 BACKEND_TYPE=B_CHECKPOINTER
+2025-04-01 22:20:30.938 +07 [5486] LOG:  [Recovery] PID=5485 LEADER_PID=0 StartTime=796836020043621 BACKEND_TYPE=B_BG_WRITER
+2025-04-01 22:20:30.938 +07 [5486] LOG:  [Recovery] PID=5486 LEADER_PID=0 StartTime=796836020043931 BACKEND_TYPE=B_STARTUP
+2025-04-01 22:20:30.938 +07 [5486] LOG:  num_requested=0  write_time=0  sync_time=0  buffers_written=0 stat_reset_timestamp=796836022946340
+2025-04-01 22:20:30.938 +07 [5486] LOG:  [Recovery] PID=5484 LEADER_PID=0 StartTime=796836020043485 BACKEND_TYPE=B_CHECKPOINTER
+2025-04-01 22:20:30.938 +07 [5486] LOG:  [Recovery] PID=5485 LEADER_PID=0 StartTime=796836020043621 BACKEND_TYPE=B_BG_WRITER
+2025-04-01 22:20:30.938 +07 [5486] LOG:  [Recovery] PID=5486 LEADER_PID=0 StartTime=796836020043931 BACKEND_TYPE=B_STARTUP
+2025-04-01 22:20:30.938 +07 [5486] LOG:  num_requested=0  write_time=0  sync_time=0  buffers_written=0 stat_reset_timestamp=796836022946340
+cp: cannot stat '/home/aleksandra/Documents/pglab/databases/test_7/wal_archive/000000010000000000000007': No such file or directory
+2025-04-01 22:20:31.945 +07 [5486] LOG:  redo done at 0/6EB6118 system usage: CPU: user: 1.82 s, system: 3.06 s, elapsed: 8.99 s
+2025-04-01 22:20:31.945 +07 [5486] LOG:  last completed transaction was at log time 2025-04-01 22:20:19.612819+07
+2025-04-01 22:20:32.971 +07 [5486] LOG:  restored log file "000000010000000000000006" from archive
+cp: cannot stat '/home/aleksandra/Documents/pglab/databases/test_7/wal_archive/00000002.history': No such file or directory
+2025-04-01 22:20:34.015 +07 [5486] LOG:  selected new timeline ID: 2
+cp: cannot stat '/home/aleksandra/Documents/pglab/databases/test_7/wal_archive/00000001.history': No such file or directory
+2025-04-01 22:20:35.073 +07 [5486] LOG:  archive recovery complete
+2025-04-01 22:20:35.075 +07 [5484] LOG:  checkpoint starting: end-of-recovery immediate wait
+2025-04-01 22:20:35.108 +07 [5484] LOG:  checkpoint complete: wrote 24 buffers (0.1%); 0 WAL file(s) added, 0 removed, 3 recycled; write=0.010 s, sync=0.006 s, total=0.035 s; sync files=20, longest=0.004 s, average=0.001 s; distance=49152 kB, estimate=49152 kB; lsn=0/7000028, redo lsn=0/7000028
+2025-04-01 22:20:35.115 +07 [5483] LOG:  database system is ready to accept connections
+
+Мне не нравится, что в моих логах последний раз buffers_written=0, при этом черещ пару строк checkpoint complete: wrote 24 buffers (0.1%)4
+А потом через sql-запрос, когда восстановление было полностью завершено, вот вывод (buffers_written = 21)
+тут походу надо разбираться, откуда в итогом выводе после завершения восстановления берутся данные
+
+postgres=# select * from pg_stat_checkpointer ;
+ num_timed | num_requested | restartpoints_timed | restartpoints_req | restartpoints_done | write_time | sync_time | buffers_written |         stats_reset          
+-----------+---------------+---------------------+-------------------+--------------------+------------+-----------+-----------------+------------------------------
+         0 |             1 |                   0 |                 0 |                  0 |         10 |         6 |              21 | 2025-04-01 22:20:22.94634+07
+(1 row)
